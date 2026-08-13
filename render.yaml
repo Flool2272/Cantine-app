@@ -29,7 +29,7 @@ services:
   - type: cron
     name: cantine-reminder
     runtime: node
-    plan: free
+    plan: starter
     region: frankfurt
     # 8h UTC ~= 9h ou 10h heure de Paris selon l'heure d'été/hiver. Ajustez si besoin.
     schedule: "0 8 * * 1-5"
