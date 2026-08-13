@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const rows = await query<Row>(
     `SELECT
-       gs.meal_date::text AS meal_date,
+       gs.meal_date::date::text AS meal_date,
        COALESCE(r.theoretical, 0)::int AS theoretical,
        a.actual_count AS actual
      FROM generate_series($1::date, $2::date, interval '1 day') AS gs(meal_date)
