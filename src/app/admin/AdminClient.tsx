@@ -13,6 +13,9 @@ export default function AdminClient() {
   const [newCodes, setNewCodes] = useState<NewCode[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [resetCode, setResetCode] = useState<{ id: number; code: string } | null>(null);
+  const [accountCode, setAccountCode] = useState("");
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountMessage, setAccountMessage] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -76,6 +79,29 @@ export default function AdminClient() {
     load();
   }
 
+  async function changeAccountCode(e: React.FormEvent) {
+    e.preventDefault();
+    setAccountMessage(null);
+    if (!/^\d{4,8}$/.test(accountCode.trim())) {
+      setAccountMessage("Le code doit contenir entre 4 et 8 chiffres.");
+      return;
+    }
+    setAccountSaving(true);
+    const res = await fetch("/api/account/code", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: accountCode.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setAccountSaving(false);
+    if (res.ok) {
+      setAccountMessage("Votre code a été mis à jour.");
+      setAccountCode("");
+    } else {
+      setAccountMessage(data.error ?? "Échec de la mise à jour.");
+    }
+  }
+
   function downloadCsv() {
     const header = "Nom;Prenom;Code\n";
     const body = newCodes.map((c) => `${c.lastName};${c.firstName};${c.code}`).join("\n");
@@ -90,6 +116,30 @@ export default function AdminClient() {
 
   return (
     <>
+      <div className="card">
+        <h2>Mon code personnel</h2>
+        <p className="subtitle">Changez votre propre code de connexion admin.</p>
+        <form onSubmit={changeAccountCode}>
+          <div className="toolbar">
+            <div className="field">
+              <label>Nouveau code (4 à 8 chiffres)</label>
+              <input
+                className="input"
+                type="password"
+                inputMode="numeric"
+                value={accountCode}
+                onChange={(e) => setAccountCode(e.target.value)}
+                placeholder="••••"
+              />
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={accountSaving}>
+              {accountSaving ? "Enregistrement..." : "Mettre à jour"}
+            </button>
+          </div>
+        </form>
+        {accountMessage && <div className="helper">{accountMessage}</div>}
+      </div>
+
       <div className="card">
         <h2>Importer des employés</h2>
         <p className="subtitle">
