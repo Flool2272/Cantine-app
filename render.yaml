@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: cantine-app
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: TEAMS_WEBHOOK_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: ADMIN_BOOTSTRAP_NAME
+        sync: false
+      - key: ADMIN_BOOTSTRAP_CODE
+        sync: false
+      - key: PROVIDER_BOOTSTRAP_NAME
+        sync: false
+      - key: PROVIDER_BOOTSTRAP_CODE
+        sync: false
+
+  - type: cron
+    name: cantine-reminder
+    runtime: node
+    plan: free
+    region: frankfurt
+    # 8h UTC ~= 9h ou 10h heure de Paris selon l'heure d'été/hiver. Ajustez si besoin.
+    schedule: "0 8 * * 1-5"
+    buildCommand: "echo no build step needed"
+    startCommand: 'curl -fsS -X POST "$APP_URL/api/cron/reminder" -H "x-cron-secret: $CRON_SECRET"'
+    envVars:
+      - key: APP_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false
