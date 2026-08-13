@@ -1,0 +1,16 @@
+name: Relance cantine
+
+on:
+  schedule:
+    # 8h UTC ~= 9h ou 10h heure de Paris selon l'heure d'été/hiver. Ajustez si besoin.
+    - cron: "0 8 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler l'endpoint de relance
+        run: |
+          curl -fsS -X POST "${{ secrets.APP_URL }}/api/cron/reminder" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}"

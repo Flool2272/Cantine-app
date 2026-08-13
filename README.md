@@ -34,12 +34,12 @@ git push -u origin main
 ## 3. Déployer sur Render
 
 1. Sur [render.com](https://render.com), **New > Blueprint**, sélectionnez le dépôt GitHub `cantine-app`.
-   Render lit automatiquement `render.yaml` et propose de créer :
-   - le service web `cantine-app` ;
-   - le cron job `cantine-reminder` (relance Teams quotidienne).
+   Render lit automatiquement `render.yaml` et propose de créer le service web `cantine-app`.
+   (La relance quotidienne n'est **pas** un cron job Render — Render ne propose pas de plan gratuit pour ce
+   type de service. Elle est gérée gratuitement par GitHub Actions, voir étape 5 ci-dessous.)
 2. Renseignez les variables d'environnement demandées (voir détail ci-dessous), puis lancez le déploiement.
-3. Une fois le service web déployé, notez son URL publique (ex. `https://cantine-app.onrender.com`) et
-   reportez-la dans la variable `APP_URL` des **deux** services (web + cron), puis redéployez.
+3. Une fois le service déployé, notez son URL publique (ex. `https://cantine-app.onrender.com`) et
+   reportez-la dans la variable `APP_URL`, puis redéployez.
 
 ### Variables d'environnement
 
@@ -67,7 +67,20 @@ Deux options, au choix :
 
 L'application envoie un simple `{"text": "..."}` en POST, compatible avec les deux approches.
 
-## 5. Premier lancement
+## 5. Activer la relance quotidienne (GitHub Actions, gratuit)
+
+La relance est déclenchée par le workflow `.github/workflows/reminder.yml`, qui appelle chaque matin en
+semaine `POST /api/cron/reminder` sur votre service Render. Il lui faut deux secrets GitHub :
+
+1. Sur Render, dans le service web `cantine-app` → onglet **Environment**, copiez la valeur générée de
+   `CRON_SECRET`.
+2. Sur GitHub, dans le dépôt → **Settings > Secrets and variables > Actions > New repository secret**, créez :
+   - `APP_URL` : l'URL publique du service Render (ex. `https://cantine-app.onrender.com`, sans `/` final) ;
+   - `CRON_SECRET` : la valeur copiée à l'étape précédente.
+3. Le workflow tourne automatiquement du lundi au vendredi (8h UTC ≈ 9h/10h Paris). Vous pouvez aussi le
+   déclencher manuellement depuis l'onglet **Actions** du dépôt (`workflow_dispatch`) pour tester.
+
+## 6. Premier lancement
 
 1. Connectez-vous en **Admin** avec `ADMIN_BOOTSTRAP_NAME` / `ADMIN_BOOTSTRAP_CODE`.
 2. Allez dans **Employés**, collez la liste `Nom;Prénom` (une ligne par personne) et importez.
@@ -91,6 +104,6 @@ npm run dev
 ## Notes
 
 - Les jours de week-end sont exclus partout (inscriptions, tableau de bord, relance).
-- L'heure de la relance (`schedule` dans `render.yaml`, en UTC) correspond à 9h-10h heure de Paris selon
-  l'heure d'été/hiver ; ajustez si besoin depuis le dashboard Render (service `cantine-reminder`).
+- L'heure de la relance (`cron` dans `.github/workflows/reminder.yml`, en UTC) correspond à 9h-10h heure de
+  Paris selon l'heure d'été/hiver ; ajustez si besoin.
 - Les codes personnels sont stockés hachés (bcrypt), jamais en clair en base.
