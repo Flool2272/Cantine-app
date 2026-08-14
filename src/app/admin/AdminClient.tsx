@@ -2,8 +2,61 @@
 
 import { useEffect, useState } from "react";
 
-type Employee = { id: number; lastName: string; firstName: string; active: boolean };
-type NewCode = { lastName: string; firstName: string; code: string };
+type Employee = { id: number; lastName: string; firstName: string; active: boolean; matricule: string | null };
+type NewCode = { lastName: string; firstName: string; matricule: string | null; code: string };
+
+function MatriculeCell({
+  employeeId,
+  value,
+  onSaved,
+}: {
+  employeeId: number;
+  value: string | null;
+  onSaved: (v: string | null) => void;
+}) {
+  const [draft, setDraft] = useState(value ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    const trimmed = draft.trim();
+    if (trimmed === (value ?? "")) return;
+    setSaving(true);
+    setError(null);
+    const res = await fetch(`/api/admin/employees/${employeeId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matricule: trimmed }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (res.ok) {
+      onSaved(trimmed || null);
+    } else {
+      setError(data.error ?? "Erreur.");
+      setDraft(value ?? "");
+    }
+  }
+
+  return (
+    <div>
+      <input
+        className="input"
+        style={{ padding: "6px 8px", fontSize: 13, width: 110 }}
+        value={draft}
+        placeholder="—"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        disabled={saving}
+      />
+      {error && (
+        <div className="error-text" style={{ marginTop: 4, maxWidth: 160 }}>
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminClient() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -103,8 +156,8 @@ export default function AdminClient() {
   }
 
   function downloadCsv() {
-    const header = "Nom;Prenom;Code\n";
-    const body = newCodes.map((c) => `${c.lastName};${c.firstName};${c.code}`).join("\n");
+    const header = "Nom;Prenom;Matricule;Code\n";
+    const body = newCodes.map((c) => `${c.lastName};${c.firstName};${c.matricule ?? ""};${c.code}`).join("\n");
     const blob = new Blob([header + body], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -143,14 +196,15 @@ export default function AdminClient() {
       <div className="card">
         <h2>Importer des employés</h2>
         <p className="subtitle">
-          Une ligne par personne, au format <code>Nom;Prénom</code> (aussi accepté : tabulation ou virgule). Un
-          code personnel à 4 chiffres est généré automatiquement pour chacun.
+          Une ligne par personne, au format <code>Nom;Prénom</code> ou <code>Nom;Prénom;Matricule</code> (matricule
+          du badge cantine, facultatif — aussi accepté : tabulation ou virgule). Un code personnel à 4 chiffres est
+          généré automatiquement pour chacun.
         </p>
         <form onSubmit={importLines}>
           <div className="field">
             <textarea
               className="input"
-              placeholder={"Dupont;Marie\nMartin;Jean\n..."}
+              placeholder={"Dupont;Marie;40881\nMartin;Jean;40882\n..."}
               value={lines}
               onChange={(e) => setLines(e.target.value)}
             />
@@ -170,6 +224,7 @@ export default function AdminClient() {
                 <tr>
                   <th>Nom</th>
                   <th>Prénom</th>
+                  <th>Matricule</th>
                   <th>Code</th>
                 </tr>
               </thead>
@@ -178,6 +233,7 @@ export default function AdminClient() {
                   <tr key={i}>
                     <td>{c.lastName}</td>
                     <td>{c.firstName}</td>
+                    <td>{c.matricule ?? <span className="muted">—</span>}</td>
                     <td>
                       <strong>{c.code}</strong>
                     </td>
@@ -202,6 +258,7 @@ export default function AdminClient() {
               <tr>
                 <th>Nom</th>
                 <th>Prénom</th>
+                <th>Matricule</th>
                 <th>Statut</th>
                 <th>Actions</th>
               </tr>
@@ -211,6 +268,15 @@ export default function AdminClient() {
                 <tr key={emp.id}>
                   <td>{emp.lastName}</td>
                   <td>{emp.firstName}</td>
+                  <td>
+                    <MatriculeCell
+                      employeeId={emp.id}
+                      value={emp.matricule}
+                      onSaved={(v) =>
+                        setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, matricule: v } : e)))
+                      }
+                    />
+                  </td>
                   <td>
                     <span className={`badge ${emp.active ? "badge-good" : "badge-bad"}`}>
                       {emp.active ? "Actif" : "Inactif"}

@@ -33,6 +33,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ ok: true, code });
   }
 
+  if (typeof body.matricule === "string") {
+    const matricule = body.matricule.trim() || null;
+    try {
+      await query("UPDATE employees SET matricule = $1 WHERE id = $2", [matricule, id]);
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | null)?.code;
+      if (code === "23505") {
+        return NextResponse.json({ error: "Ce matricule est déjà utilisé par un autre employé." }, { status: 409 });
+      }
+      throw err;
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   return NextResponse.json({ error: "Requête invalide." }, { status: 400 });
 }
 

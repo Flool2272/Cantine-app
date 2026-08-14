@@ -33,6 +33,12 @@ CREATE TABLE IF NOT EXISTS employees (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Matricule du badge cantine, saisi à l'import ou modifiable ensuite. Optionnel
+-- (NULL tant qu'il n'est pas renseigné) : un index unique partiel autorise
+-- plusieurs employés sans matricule sans permettre de doublon entre deux badges.
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS matricule TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_matricule ON employees(matricule) WHERE matricule IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS registrations (
   id SERIAL PRIMARY KEY,
   employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
@@ -68,6 +74,20 @@ CREATE TABLE IF NOT EXISTS actual_attendance (
   entered_by TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Passages badge individuels à la cantine (un jour donné). Pas encore alimentée
+-- par une intégration automatique : structure préparée en amont pour le futur
+-- rapprochement "inscrit vs a réellement badgé", quelle que soit la source
+-- (export du terminal du prestataire, webhook, ou import manuel).
+CREATE TABLE IF NOT EXISTS badge_scans (
+  id SERIAL PRIMARY KEY,
+  matricule TEXT NOT NULL,
+  meal_date DATE NOT NULL,
+  scanned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(matricule, meal_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_badge_scans_date ON badge_scans(meal_date);
 `;
 
 async function bootstrapAccount(
