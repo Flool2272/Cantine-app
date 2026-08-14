@@ -12,13 +12,15 @@ export default async function InscriptionPage() {
 
   const today = todayInParis();
   const currentMonday = mondayOf(today);
-  const nextMonday = addDays(currentMonday, 7);
+  // Environ un mois de visibilité (5 semaines ouvrées) à partir de la semaine en cours.
+  const WEEKS_AHEAD = 5;
+  const weeks = Array.from({ length: WEEKS_AHEAD }, (_, i) => addDays(currentMonday, i * 7));
 
   return (
     <>
       <TopBar name={session!.name} role={session!.role} />
       <div className="page">
-        <InscriptionClient today={today} weeks={[currentMonday, nextMonday]} />
+        <InscriptionClient today={today} weeks={weeks} />
       </div>
     </>
   );

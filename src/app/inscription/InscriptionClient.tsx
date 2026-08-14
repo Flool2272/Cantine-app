@@ -1,12 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { workWeek, weekdayLabel } from "@/lib/dates";
+import { workWeek, weekdayLabel, parseISO } from "@/lib/dates";
 
 type Status = "yes" | "no";
 
+const weekRangeFormatter = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
+function weekLabel(mondayIso: string, fridayIso: string): string {
+  return `Semaine du ${weekRangeFormatter.format(parseISO(mondayIso))} au ${weekRangeFormatter.format(
+    parseISO(fridayIso)
+  )}`;
+}
+
 export default function InscriptionClient({ today, weeks }: { today: string; weeks: string[] }) {
-  const days = useMemo(() => weeks.flatMap((monday) => workWeek(monday)), [weeks]);
+  const weeksData = useMemo(() => weeks.map((monday) => ({ monday, days: workWeek(monday) })), [weeks]);
+  const days = useMemo(() => weeksData.flatMap((w) => w.days), [weeksData]);
   const from = days[0];
   const to = days[days.length - 1];
 
@@ -60,44 +73,46 @@ export default function InscriptionClient({ today, weeks }: { today: string; wee
         <div className="banner banner-muted">🚫 Vous ne mangez pas à la cantine aujourd&apos;hui.</div>
       )}
 
-      <div className="card">
-        <h2>Mes inscriptions</h2>
-        <p className="subtitle">
-          Pour chaque jour, indiquez si vous mangez à la cantine ou non. Tant qu&apos;aucun choix n&apos;est fait,
-          le jour reste marqué « pas encore répondu ».
-        </p>
-        <div className="day-grid">
-          {days.map((date) => {
-            const isToday = date === today;
-            const status = statuses[date];
-            return (
-              <div key={date} className={`day-card ${isToday ? "today" : ""}`}>
-                {isToday && <span className="day-badge">Aujourd&apos;hui</span>}
-                <span className="day-label">{weekdayLabel(date)}</span>
-                {!status && <span className="badge badge-warn" style={{ alignSelf: "flex-start" }}>Pas encore répondu</span>}
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    className={`btn ${status === "yes" ? "btn-primary" : ""}`}
-                    style={{ flex: 1 }}
-                    onClick={() => setStatus(date, "yes")}
-                    disabled={loading || pending === date}
-                  >
-                    {status === "yes" ? "✅ Je mange" : "Je mange"}
-                  </button>
-                  <button
-                    className={`btn ${status === "no" ? "btn-danger" : ""}`}
-                    style={{ flex: 1 }}
-                    onClick={() => setStatus(date, "no")}
-                    disabled={loading || pending === date}
-                  >
-                    {status === "no" ? "🚫 Je ne mange pas" : "Ne mange pas"}
-                  </button>
+      {weeksData.map(({ monday, days: weekDays }) => (
+        <div className="card" key={monday}>
+          <h2>{weekLabel(weekDays[0], weekDays[weekDays.length - 1])}</h2>
+          <div className="day-grid">
+            {weekDays.map((date) => {
+              const isToday = date === today;
+              const status = statuses[date];
+              return (
+                <div key={date} className={`day-card ${isToday ? "today" : ""}`}>
+                  {isToday && <span className="day-badge">Aujourd&apos;hui</span>}
+                  <span className="day-label">{weekdayLabel(date)}</span>
+                  {!status && (
+                    <span className="badge badge-warn" style={{ alignSelf: "flex-start" }}>
+                      Pas encore répondu
+                    </span>
+                  )}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className={`btn ${status === "yes" ? "btn-primary" : ""}`}
+                      style={{ flex: 1 }}
+                      onClick={() => setStatus(date, "yes")}
+                      disabled={loading || pending === date}
+                    >
+                      {status === "yes" ? "✅ Je mange" : "Je mange"}
+                    </button>
+                    <button
+                      className={`btn ${status === "no" ? "btn-danger" : ""}`}
+                      style={{ flex: 1 }}
+                      onClick={() => setStatus(date, "no")}
+                      disabled={loading || pending === date}
+                    >
+                      {status === "no" ? "🚫 Je ne mange pas" : "Ne mange pas"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ))}
     </>
   );
 }
