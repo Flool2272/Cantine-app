@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const STATUSES = new Set(["yes", "no"]);
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -16,12 +17,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Paramètres from/to invalides." }, { status: 400 });
   }
 
-  const rows = await query<{ meal_date: string }>(
-    "SELECT meal_date::text FROM registrations WHERE employee_id = $1 AND meal_date BETWEEN $2 AND $3",
+  const rows = await query<{ meal_date: string; status: string }>(
+    `SELECT meal_date::date::text AS meal_date, status
+     FROM registrations
+     WHERE employee_id = $1 AND meal_date BETWEEN $2 AND $3`,
     [session.sub, from, to]
   );
 
-  return NextResponse.json({ dates: rows.map((r) => r.meal_date) });
+  const statuses: Record<string, "yes" | "no"> = {};
+  for (const r of rows) statuses[r.meal_date] = r.status === "no" ? "no" : "yes";
+
+  return NextResponse.json({ statuses });
 }
 
 export async function POST(req: NextRequest) {
@@ -31,23 +37,16 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null);
-  if (!body || !DATE_RE.test(body.date) || typeof body.register !== "boolean") {
+  if (!body || !DATE_RE.test(body.date) || typeof body.status !== "string" || !STATUSES.has(body.status)) {
     return NextResponse.json({ error: "Requête invalide." }, { status: 400 });
   }
 
-  if (body.register) {
-    await query(
-      `INSERT INTO registrations (employee_id, meal_date)
-       VALUES ($1, $2)
-       ON CONFLICT (employee_id, meal_date) DO NOTHING`,
-      [session.sub, body.date]
-    );
-  } else {
-    await query("DELETE FROM registrations WHERE employee_id = $1 AND meal_date = $2", [
-      session.sub,
-      body.date,
-    ]);
-  }
+  await query(
+    `INSERT INTO registrations (employee_id, meal_date, status)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (employee_id, meal_date) DO UPDATE SET status = EXCLUDED.status`,
+    [session.sub, body.date, body.status]
+  );
 
   return NextResponse.json({ ok: true });
 }

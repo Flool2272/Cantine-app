@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   const [{ count }] = await query<{ count: number }>(
-    "SELECT COUNT(*)::int AS count FROM registrations WHERE meal_date = $1",
+    "SELECT COUNT(*)::int AS count FROM registrations WHERE meal_date = $1 AND status = 'yes'",
     [date]
   );
   const [actualRow] = await query<{ actual_count: number }>(

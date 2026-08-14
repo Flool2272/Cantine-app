@@ -233,6 +233,12 @@ select.input:focus {
   border: 1px solid #bfe2cf;
 }
 
+.banner-muted {
+  background: #eef1f4;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
 .banner .btn {
   margin-left: auto;
   white-space: nowrap;

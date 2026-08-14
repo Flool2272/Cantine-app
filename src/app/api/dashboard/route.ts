@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
      LEFT JOIN (
        SELECT meal_date, COUNT(*) AS theoretical
        FROM registrations
+       WHERE status = 'yes'
        GROUP BY meal_date
      ) r ON r.meal_date = gs.meal_date
      LEFT JOIN actual_attendance a ON a.meal_date = gs.meal_date

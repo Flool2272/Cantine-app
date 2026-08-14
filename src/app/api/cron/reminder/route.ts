@@ -19,14 +19,15 @@ export async function POST(req: NextRequest) {
   const [{ count: activeCount }] = await query<{ count: number }>(
     "SELECT COUNT(*)::int AS count FROM employees WHERE active = TRUE"
   );
-  const [{ count: registeredCount }] = await query<{ count: number }>(
-    "SELECT COUNT(*)::int AS count FROM registrations WHERE meal_date = $1", // employés déjà inscrits aujourd'hui
+  // Une ligne = une réponse (mange OU ne mange pas) ; l'absence de ligne = pas encore répondu.
+  const [{ count: answeredCount }] = await query<{ count: number }>(
+    "SELECT COUNT(*)::int AS count FROM registrations WHERE meal_date = $1",
     [today]
   );
 
-  const missing = activeCount - registeredCount;
+  const missing = activeCount - answeredCount;
   if (missing <= 0) {
-    return NextResponse.json({ skipped: "everyone-registered", activeCount, registeredCount });
+    return NextResponse.json({ skipped: "everyone-answered", activeCount, answeredCount });
   }
 
   const appUrl = process.env.APP_URL ?? "";
@@ -37,8 +38,8 @@ export async function POST(req: NextRequest) {
   }).format(new Date(`${today}T12:00:00Z`));
 
   await postTeamsMessage(
-    `🍽️ Rappel cantine — **${missing}** personne(s) ne sont pas encore inscrites pour le repas de ${formattedDate}. ` +
-      `Pensez à vous inscrire avant la coupure du prestataire !${appUrl ? ` ${appUrl}` : ""}`
+    `🍽️ Rappel cantine — **${missing}** personne(s) n'ont pas encore indiqué si elles mangent le ${formattedDate}. ` +
+      `Merci de répondre (mange / ne mange pas) avant la coupure du prestataire !${appUrl ? ` ${appUrl}` : ""}`
   );
 
   return NextResponse.json({ ok: true, missing });

@@ -41,6 +41,10 @@ CREATE TABLE IF NOT EXISTS registrations (
   UNIQUE(employee_id, meal_date)
 );
 
+-- 'yes' = mange à la cantine, 'no' = a explicitement indiqué ne pas manger.
+-- L'absence de ligne = pas encore répondu (distinct d'un "non" explicite).
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'yes';
+
 CREATE INDEX IF NOT EXISTS idx_registrations_date ON registrations(meal_date);
 CREATE INDEX IF NOT EXISTS idx_registrations_employee ON registrations(employee_id);
 
