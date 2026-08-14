@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Format attendu : Nom;Prénom ou Nom;Prénom;Matricule (matricule facultatif).
-  const rows = body.lines
+  const rawLines: string = body.lines;
+  const rows = rawLines
     .split("\n")
     .map((line: string) => line.trim())
     .filter(Boolean)
