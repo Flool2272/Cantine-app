@@ -98,11 +98,11 @@ export default function DashboardClient({ today, defaultFrom }: { today: string;
             </div>
             <div className="legend">
               <span>
-                <span className="legend-dot" style={{ background: "#a9c7bb" }} />
+                <span className="legend-dot" style={{ background: "#b7bce6" }} />
                 Inscrits (théorique)
               </span>
               <span>
-                <span className="legend-dot" style={{ background: "#1f6f50" }} />
+                <span className="legend-dot" style={{ background: "#171c8f" }} />
                 Présents réels
               </span>
             </div>

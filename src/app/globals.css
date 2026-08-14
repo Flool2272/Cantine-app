@@ -4,14 +4,15 @@
   --text: #1c2530;
   --muted: #667085;
   --border: #e3e8ef;
-  --primary: #1f6f50;
-  --primary-dark: #175a40;
+  --primary: #171c8f;
+  --primary-dark: #10134f;
+  --primary-bg: #e6e7f8;
   --primary-contrast: #ffffff;
   --danger: #c0392b;
   --danger-bg: #fdecea;
   --warning: #b7791f;
   --warning-bg: #fef3d8;
-  --success: #1f6f50;
+  --success: #1a8f4e;
   --success-bg: #e5f3ec;
   --radius: 12px;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
@@ -55,14 +56,16 @@ button {
   padding: 14px 20px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  border-top: 3px solid var(--primary);
 }
 
 .topbar-brand {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 17px;
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--primary);
 }
 
 .topbar-user {
@@ -206,7 +209,7 @@ select.input:focus {
 
 .tab.active {
   background: var(--surface);
-  color: var(--text);
+  color: var(--primary);
   box-shadow: var(--shadow);
 }
 
@@ -278,7 +281,7 @@ select.input:focus {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--primary);
-  background: var(--success-bg);
+  background: var(--primary-bg);
   padding: 2px 8px;
   border-radius: 999px;
 }
@@ -389,7 +392,7 @@ tr:last-child td {
 }
 
 .bar-theoretical {
-  background: #a9c7bb;
+  background: #b7bce6;
 }
 
 .bar-actual {
@@ -539,7 +542,7 @@ tr.row-bad td {
 }
 
 .hbar-fill.theoretical {
-  background: #a9c7bb;
+  background: #b7bce6;
 }
 
 .hbar-fill.actual {
