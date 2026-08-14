@@ -116,8 +116,7 @@ export default function DashboardClient({ today, defaultFrom }: { today: string;
           <thead>
             <tr>
               <th>Jour</th>
-              <th>Inscrits</th>
-              <th>Réels</th>
+              <th>Comparaison</th>
               <th>Taux</th>
               <th>Écart</th>
             </tr>
@@ -129,14 +128,41 @@ export default function DashboardClient({ today, defaultFrom }: { today: string;
               .map((d) => {
                 const rate = d.actual != null && d.theoretical > 0 ? d.actual / d.theoretical : null;
                 const gap = d.actual != null ? d.actual - d.theoretical : null;
+                const rowClass =
+                  rate == null ? "" : rate >= 0.9 ? "row-good" : rate >= 0.75 ? "row-warn" : "row-bad";
                 return (
-                  <tr key={d.date}>
-                    <td>{weekdayLabel(d.date)}</td>
-                    <td>{d.theoretical}</td>
-                    <td>{d.actual ?? <span className="muted">non saisi</span>}</td>
+                  <tr key={d.date} className={rowClass}>
+                    <td>
+                      {weekdayLabel(d.date)}
+                      {d.date === today && <span className="day-badge inline-badge">Aujourd&apos;hui</span>}
+                    </td>
+                    <td className="hbar-cell">
+                      <div className="hbar-row">
+                        <div className="hbar-track">
+                          <div
+                            className="hbar-fill theoretical"
+                            style={{ width: `${(d.theoretical / maxValue) * 100}%` }}
+                          />
+                        </div>
+                        <span className="hbar-value">{d.theoretical}</span>
+                      </div>
+                      <div className="hbar-row">
+                        <div className="hbar-track">
+                          {d.actual != null && (
+                            <div
+                              className="hbar-fill actual"
+                              style={{ width: `${((d.actual ?? 0) / maxValue) * 100}%` }}
+                            />
+                          )}
+                        </div>
+                        <span className="hbar-value">
+                          {d.actual ?? <span className="muted">—</span>}
+                        </span>
+                      </div>
+                    </td>
                     <td>
                       {rate == null ? (
-                        <span className="muted">—</span>
+                        <span className="muted">non saisi</span>
                       ) : (
                         <span
                           className={`badge ${
@@ -147,12 +173,34 @@ export default function DashboardClient({ today, defaultFrom }: { today: string;
                         </span>
                       )}
                     </td>
-                    <td>{gap == null ? <span className="muted">—</span> : gap > 0 ? `+${gap}` : gap}</td>
+                    <td>
+                      {gap == null ? (
+                        <span className="muted">—</span>
+                      ) : (
+                        <span
+                          className={
+                            gap === 0 ? "muted" : gap > 0 ? "gap-positive" : "gap-negative"
+                          }
+                        >
+                          {gap > 0 ? `+${gap}` : gap}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
           </tbody>
         </table>
+        <div className="legend">
+          <span>
+            <span className="legend-dot" style={{ background: "#a9c7bb" }} />
+            Inscrits (théorique)
+          </span>
+          <span>
+            <span className="legend-dot" style={{ background: "#1f6f50" }} />
+            Présents réels
+          </span>
+        </div>
       </div>
     </>
   );
