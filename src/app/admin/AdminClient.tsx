@@ -58,6 +58,8 @@ function MatriculeCell({
   );
 }
 
+type ProviderAccount = { id: number; name: string };
+
 export default function AdminClient() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,9 @@ export default function AdminClient() {
   const [accountCode, setAccountCode] = useState("");
   const [accountSaving, setAccountSaving] = useState(false);
   const [accountMessage, setAccountMessage] = useState<string | null>(null);
+  const [providerAccounts, setProviderAccounts] = useState<ProviderAccount[]>([]);
+  const [providerResetCode, setProviderResetCode] = useState<{ id: number; code: string } | null>(null);
+  const [providerResetting, setProviderResetting] = useState<number | null>(null);
 
   async function load() {
     setLoading(true);
@@ -80,9 +85,33 @@ export default function AdminClient() {
     setLoading(false);
   }
 
+  async function loadProviderAccounts() {
+    const res = await fetch("/api/admin/provider-accounts");
+    if (res.ok) {
+      const data = await res.json();
+      setProviderAccounts(data.accounts);
+    }
+  }
+
   useEffect(() => {
     load();
+    loadProviderAccounts();
   }, []);
+
+  async function resetProviderCode(account: ProviderAccount) {
+    setProviderResetting(account.id);
+    setProviderResetCode(null);
+    const res = await fetch(`/api/admin/provider-accounts/${account.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resetCode: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setProviderResetting(null);
+    if (res.ok) {
+      setProviderResetCode({ id: account.id, code: data.code });
+    }
+  }
 
   async function importLines(e: React.FormEvent) {
     e.preventDefault();
@@ -191,6 +220,35 @@ export default function AdminClient() {
           </div>
         </form>
         {accountMessage && <div className="helper">{accountMessage}</div>}
+      </div>
+
+      <div className="card">
+        <h2>Compte(s) prestataire</h2>
+        <p className="subtitle">Réinitialisez le code de connexion du prestataire si besoin.</p>
+        {providerAccounts.length === 0 ? (
+          <p className="muted">Aucun compte prestataire trouvé.</p>
+        ) : (
+          providerAccounts.map((account) => (
+            <div key={account.id} className="toolbar" style={{ marginBottom: 0 }}>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label>Nom</label>
+                <div>{account.name}</div>
+              </div>
+              <button
+                className="btn"
+                onClick={() => resetProviderCode(account)}
+                disabled={providerResetting === account.id}
+              >
+                {providerResetting === account.id ? "Réinitialisation..." : "Réinitialiser code"}
+              </button>
+              {providerResetCode?.id === account.id && (
+                <div className="helper">
+                  Nouveau code : <strong>{providerResetCode.code}</strong>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
       <div className="card">
