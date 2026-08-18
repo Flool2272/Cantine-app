@@ -566,3 +566,109 @@ tr.row-bad td {
   color: var(--danger);
   font-weight: 600;
 }
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  user-select: none;
+}
+
+.cal-weekday-label {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.cal-cell {
+  position: relative;
+  min-height: 64px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 6px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+
+.cal-cell.weekend {
+  background: #f7f8fa;
+  border-color: transparent;
+  cursor: default;
+}
+
+.cal-cell.outside {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cal-cell.past:not(.weekend) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cal-cell.today {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.cal-cell.in-range {
+  background: var(--primary-bg);
+  border-color: var(--primary);
+}
+
+.cal-cell.status-yes {
+  background: var(--success-bg);
+  border-color: #bfe2cf;
+}
+
+.cal-cell.status-no {
+  background: #eef1f4;
+}
+
+.cal-cell.in-range.status-yes,
+.cal-cell.in-range.status-no {
+  border-color: var(--primary);
+}
+
+.cal-daynum {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cal-cell.weekend .cal-daynum,
+.cal-cell.outside .cal-daynum {
+  color: var(--muted);
+}
+
+.cal-status-icon {
+  font-size: 16px;
+  line-height: 1;
+  margin-top: auto;
+}
+
+.cal-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}

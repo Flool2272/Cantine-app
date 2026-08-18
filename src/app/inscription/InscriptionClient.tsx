@@ -1,52 +1,134 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { workWeek, weekdayLabel, parseISO } from "@/lib/dates";
+import {
+  addDays,
+  addMonths,
+  firstOfMonth,
+  isWeekday,
+  lastDayOfMonth,
+  mondayOf,
+  monthLabel,
+} from "@/lib/dates";
 
 type Status = "yes" | "no";
 
-const weekRangeFormatter = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric",
-  month: "long",
-  timeZone: "UTC",
-});
+const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
-function weekLabel(mondayIso: string, fridayIso: string): string {
-  return `Semaine du ${weekRangeFormatter.format(parseISO(mondayIso))} au ${weekRangeFormatter.format(
-    parseISO(fridayIso)
-  )}`;
-}
-
-export default function InscriptionClient({ today, weeks }: { today: string; weeks: string[] }) {
-  const weeksData = useMemo(() => weeks.map((monday) => ({ monday, days: workWeek(monday) })), [weeks]);
-  const days = useMemo(() => weeksData.flatMap((w) => w.days), [weeksData]);
-  const from = days[0];
-  const to = days[days.length - 1];
-
+export default function InscriptionClient({ today }: { today: string }) {
+  const [viewMonth, setViewMonth] = useState(firstOfMonth(today));
   const [statuses, setStatuses] = useState<Record<string, Status>>({});
   const [loading, setLoading] = useState(true);
-  const [pending, setPending] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const [focus, setFocus] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  // Grille du mois affiché : semaines complètes (lundi -> dimanche) qui contiennent le mois.
+  const weeks = useMemo(() => {
+    const monthStart = viewMonth;
+    const monthEnd = lastDayOfMonth(viewMonth);
+    const gridStart = mondayOf(monthStart);
+    const gridEnd = addDays(mondayOf(monthEnd), 6);
+
+    const result: string[][] = [];
+    let cursor = gridStart;
+    while (cursor <= gridEnd) {
+      const week = Array.from({ length: 7 }, (_, i) => addDays(cursor, i));
+      result.push(week);
+      cursor = addDays(cursor, 7);
+    }
+    return result;
+  }, [viewMonth]);
+
+  const gridFrom = weeks[0][0];
+  const gridTo = weeks[weeks.length - 1][6];
 
   useEffect(() => {
-    fetch(`/api/registrations?from=${from}&to=${to}`)
+    setLoading(true);
+    fetch(`/api/registrations?from=${gridFrom}&to=${gridTo}`)
       .then((r) => r.json())
       .then((data) => {
-        setStatuses(data.statuses as Record<string, Status>);
+        setStatuses((prev) => ({ ...prev, ...(data.statuses as Record<string, Status>) }));
         setLoading(false);
       });
-  }, [from, to]);
+  }, [gridFrom, gridTo]);
 
-  async function setStatus(date: string, status: Status) {
-    setPending(date);
+  useEffect(() => {
+    function onMouseUp() {
+      setDragging(false);
+    }
+    window.addEventListener("mouseup", onMouseUp);
+    return () => window.removeEventListener("mouseup", onMouseUp);
+  }, []);
+
+  function isSelectable(date: string): boolean {
+    return isWeekday(date) && date >= today && date.slice(0, 7) === viewMonth.slice(0, 7);
+  }
+
+  function handleMouseDown(date: string, shiftKey: boolean) {
+    if (!isSelectable(date)) return;
+    if (shiftKey && anchor) {
+      setFocus(date);
+    } else {
+      setAnchor(date);
+      setFocus(date);
+    }
+    setDragging(true);
+  }
+
+  function handleMouseEnter(date: string) {
+    if (dragging && isSelectable(date)) {
+      setFocus(date);
+    }
+  }
+
+  const range = useMemo(() => {
+    if (!anchor || !focus) return null;
+    return anchor <= focus ? [anchor, focus] : [focus, anchor];
+  }, [anchor, focus]);
+
+  const selectedDates = useMemo(() => {
+    if (!range) return [];
+    const [start, end] = range;
+    const out: string[] = [];
+    let cursor = start;
+    while (cursor <= end) {
+      if (isWeekday(cursor) && cursor >= today) out.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+    return out;
+  }, [range, today]);
+
+  function clearSelection() {
+    setAnchor(null);
+    setFocus(null);
+  }
+
+  async function applyStatus(status: Status, datesOverride?: string[]) {
+    const dates = datesOverride ?? selectedDates;
+    if (dates.length === 0) return;
+    setApplying(true);
+    setError(null);
     const res = await fetch("/api/registrations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, status }),
+      body: JSON.stringify({ dates, status }),
     });
+    setApplying(false);
     if (res.ok) {
-      setStatuses((prev) => ({ ...prev, [date]: status }));
+      setStatuses((prev) => {
+        const next = { ...prev };
+        for (const d of dates) next[d] = status;
+        return next;
+      });
+      clearSelection();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Échec de l'enregistrement.");
     }
-    setPending(null);
   }
 
   const todayStatus = statuses[today];
@@ -57,10 +139,10 @@ export default function InscriptionClient({ today, weeks }: { today: string; wee
         <div className="banner banner-warning">
           <span>⚠️ Vous n&apos;avez pas encore répondu pour le repas d&apos;aujourd&apos;hui.</span>
           <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
-            <button className="btn btn-primary" onClick={() => setStatus(today, "yes")} disabled={pending === today}>
+            <button className="btn btn-primary" onClick={() => applyStatus("yes", [today])} disabled={applying}>
               Je mange
             </button>
-            <button className="btn btn-danger" onClick={() => setStatus(today, "no")} disabled={pending === today}>
+            <button className="btn btn-danger" onClick={() => applyStatus("no", [today])} disabled={applying}>
               Je ne mange pas
             </button>
           </div>
@@ -73,46 +155,104 @@ export default function InscriptionClient({ today, weeks }: { today: string; wee
         <div className="banner banner-muted">🚫 Vous ne mangez pas à la cantine aujourd&apos;hui.</div>
       )}
 
-      {weeksData.map(({ monday, days: weekDays }) => (
-        <div className="card" key={monday}>
-          <h2>{weekLabel(weekDays[0], weekDays[weekDays.length - 1])}</h2>
-          <div className="day-grid">
-            {weekDays.map((date) => {
+      <div className="card">
+        <div className="cal-header">
+          <button className="btn" onClick={() => setViewMonth(addMonths(viewMonth, -1))}>
+            ← Mois précédent
+          </button>
+          <h2 style={{ margin: 0, textTransform: "capitalize" }}>{monthLabel(viewMonth)}</h2>
+          <button className="btn" onClick={() => setViewMonth(addMonths(viewMonth, 1))}>
+            Mois suivant →
+          </button>
+        </div>
+
+        <p className="subtitle" style={{ marginTop: 12, marginBottom: 12 }}>
+          Cliquez sur un jour, ou cliquez-glissez (ou Maj+clic) pour sélectionner une plage de jours ouvrés, puis
+          choisissez « Je mange » ou « Je ne mange pas » pour toute la plage.
+        </p>
+
+        <div className="cal-grid">
+          {WEEKDAY_LABELS.map((label) => (
+            <div key={label} className="cal-weekday-label">
+              {label}
+            </div>
+          ))}
+          {weeks.flatMap((week) =>
+            week.map((date) => {
+              const inMonth = date.slice(0, 7) === viewMonth.slice(0, 7);
+              const weekend = !isWeekday(date);
+              const past = date < today;
               const isToday = date === today;
               const status = statuses[date];
+              const selectable = isSelectable(date);
+              const inRange = !!range && date >= range[0] && date <= range[1];
+
+              const classes = [
+                "cal-cell",
+                weekend ? "weekend" : "",
+                !inMonth ? "outside" : "",
+                past && !weekend ? "past" : "",
+                isToday ? "today" : "",
+                inRange && selectable ? "in-range" : "",
+                status === "yes" ? "status-yes" : "",
+                status === "no" ? "status-no" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+
               return (
-                <div key={date} className={`day-card ${isToday ? "today" : ""}`}>
-                  {isToday && <span className="day-badge">Aujourd&apos;hui</span>}
-                  <span className="day-label">{weekdayLabel(date)}</span>
-                  {!status && (
-                    <span className="badge badge-warn" style={{ alignSelf: "flex-start" }}>
-                      Pas encore répondu
+                <div
+                  key={date}
+                  className={classes}
+                  onMouseDown={(e) => handleMouseDown(date, e.shiftKey)}
+                  onMouseEnter={() => handleMouseEnter(date)}
+                >
+                  <span className="cal-daynum">{Number(date.slice(8, 10))}</span>
+                  {!weekend && inMonth && (
+                    <span className="cal-status-icon">
+                      {status === "yes" ? "✅" : status === "no" ? "🚫" : ""}
                     </span>
                   )}
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      className={`btn ${status === "yes" ? "btn-primary" : ""}`}
-                      style={{ flex: 1 }}
-                      onClick={() => setStatus(date, "yes")}
-                      disabled={loading || pending === date}
-                    >
-                      {status === "yes" ? "✅ Je mange" : "Je mange"}
-                    </button>
-                    <button
-                      className={`btn ${status === "no" ? "btn-danger" : ""}`}
-                      style={{ flex: 1 }}
-                      onClick={() => setStatus(date, "no")}
-                      disabled={loading || pending === date}
-                    >
-                      {status === "no" ? "🚫 Je ne mange pas" : "Ne mange pas"}
-                    </button>
-                  </div>
                 </div>
               );
-            })}
-          </div>
+            })
+          )}
         </div>
-      ))}
+
+        <div className="legend" style={{ marginTop: 12 }}>
+          <span>
+            <span className="legend-dot" style={{ background: "var(--success-bg)", border: "1px solid #bfe2cf" }} />
+            Je mange
+          </span>
+          <span>
+            <span className="legend-dot" style={{ background: "#eef1f4", border: "1px solid var(--border)" }} />
+            Je ne mange pas
+          </span>
+          <span>
+            <span className="legend-dot" style={{ background: "var(--surface)", border: "1px solid var(--border)" }} />
+            Pas encore répondu
+          </span>
+        </div>
+
+        {range && (
+          <div className="cal-toolbar">
+            <strong>
+              {selectedDates.length} jour{selectedDates.length > 1 ? "s" : ""} sélectionné
+              {selectedDates.length > 1 ? "s" : ""}
+            </strong>
+            <button className="btn btn-primary" onClick={() => applyStatus("yes")} disabled={applying}>
+              {applying ? "..." : "Je mange"}
+            </button>
+            <button className="btn btn-danger" onClick={() => applyStatus("no")} disabled={applying}>
+              {applying ? "..." : "Je ne mange pas"}
+            </button>
+            <button className="btn" onClick={clearSelection} disabled={applying}>
+              Annuler la sélection
+            </button>
+          </div>
+        )}
+        {error && <div className="error-text">{error}</div>}
+      </div>
     </>
   );
 }

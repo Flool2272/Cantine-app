@@ -34,6 +34,27 @@ export function workWeek(mondayIso: string): string[] {
   return [0, 1, 2, 3, 4].map((offset) => addDays(mondayIso, offset));
 }
 
+export function firstOfMonth(iso: string): string {
+  const d = parseISO(iso);
+  return formatISO(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
+}
+
+export function addMonths(iso: string, months: number): string {
+  const d = parseISO(iso);
+  return formatISO(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months, 1)));
+}
+
+export function lastDayOfMonth(iso: string): string {
+  const d = parseISO(iso);
+  return formatISO(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)));
+}
+
+export function monthLabel(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    parseISO(iso)
+  );
+}
+
 export function weekdayLabel(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",

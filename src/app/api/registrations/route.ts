@@ -37,16 +37,30 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null);
-  if (!body || !DATE_RE.test(body.date) || typeof body.status !== "string" || !STATUSES.has(body.status)) {
+  if (!body || typeof body.status !== "string" || !STATUSES.has(body.status)) {
     return NextResponse.json({ error: "Requête invalide." }, { status: 400 });
   }
 
-  await query(
-    `INSERT INTO registrations (employee_id, meal_date, status)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (employee_id, meal_date) DO UPDATE SET status = EXCLUDED.status`,
-    [session.sub, body.date, body.status]
-  );
+  // Un seul jour (`date`) ou une plage de jours (`dates`, pour la sélection calendrier).
+  const dates: unknown[] = Array.isArray(body.dates) ? body.dates : typeof body.date === "string" ? [body.date] : [];
+  if (dates.length === 0) {
+    return NextResponse.json({ error: "Aucune date fournie." }, { status: 400 });
+  }
+  if (dates.length > 400) {
+    return NextResponse.json({ error: "Trop de jours sélectionnés en une seule fois." }, { status: 400 });
+  }
+  if (!dates.every((d): d is string => typeof d === "string" && DATE_RE.test(d))) {
+    return NextResponse.json({ error: "Date(s) invalide(s)." }, { status: 400 });
+  }
 
-  return NextResponse.json({ ok: true });
+  for (const d of dates as string[]) {
+    await query(
+      `INSERT INTO registrations (employee_id, meal_date, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (employee_id, meal_date) DO UPDATE SET status = EXCLUDED.status`,
+      [session.sub, d, body.status]
+    );
+  }
+
+  return NextResponse.json({ ok: true, count: dates.length });
 }
